@@ -1,0 +1,12 @@
+spring:
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
+
+s3:
+  artifacts:
+    bucket: swe-csa-bucket
+    user: minioadmin
+    secret: minioadmin
+    url: http://localhost:9000
