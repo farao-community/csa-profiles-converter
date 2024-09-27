@@ -8,14 +8,11 @@ import com.powsybl.commons.datasource.MemDataSource;
 import com.powsybl.computation.local.LocalComputationManager;
 import com.powsybl.iidm.network.ImportConfig;
 import com.powsybl.iidm.network.Network;
+import com.powsybl.openrao.commons.OpenRaoException;
 import com.powsybl.openrao.data.cracapi.Crac;
-import com.powsybl.openrao.data.craccreation.creator.api.parameters.CracCreationParameters;
-import com.powsybl.openrao.data.craccreation.creator.csaprofile.CsaProfileCrac;
+import com.powsybl.openrao.data.cracapi.parameters.CracCreationParameters;
 import com.powsybl.openrao.data.craccreation.creator.csaprofile.craccreator.CsaProfileCracCreationContext;
-import com.powsybl.openrao.data.craccreation.creator.csaprofile.craccreator.CsaProfileCracCreator;
-import com.powsybl.openrao.data.craccreation.creator.csaprofile.importer.CsaProfileCracImporter;
 import com.powsybl.openrao.data.craccreation.creator.csaprofile.parameters.CsaCracCreationParameters;
-import com.powsybl.openrao.data.cracioapi.CracExporters;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -57,27 +54,27 @@ public class CsaProfilesConverterService {
 
             String cracDestinationPath = "/inputs/" + HOURLY_NAME_FORMATTER.format(utcInstant).concat(".json");
             ByteArrayOutputStream cracBaos = new ByteArrayOutputStream();
-            CracExporters.exportCrac(crac, network, "Json", cracBaos);
+            crac.write("JSON", cracBaos);
             s3ArtifactsAdapter.uploadFile(cracDestinationPath, new ByteArrayInputStream(cracBaos.toByteArray()));
 
             String iidmNetworkDestinationPath = "/inputs/" + HOURLY_NAME_FORMATTER.format(utcInstant).concat(".xiidm");
             MemDataSource memDataSource = new MemDataSource();
             network.write("XIIDM", new Properties(), memDataSource);
             s3ArtifactsAdapter.uploadFile(iidmNetworkDestinationPath, memDataSource.newInputStream("", "xiidm"));
-            return new CsaRequest(taskId, utcInstant.toString(), s3ArtifactsAdapter.generatePreSignedUrl(iidmNetworkDestinationPath), s3ArtifactsAdapter.generatePreSignedUrl(cracDestinationPath), s3ArtifactsAdapter.generatePreSignedUrl(String.format("%s/result/rao-schedule.json", taskId)));
+            return new CsaRequest(taskId, utcInstant.toString(), s3ArtifactsAdapter.generatePreSignedUrl(iidmNetworkDestinationPath), s3ArtifactsAdapter.generatePreSignedUrl(cracDestinationPath), s3ArtifactsAdapter.createRaoResultDestination(OffsetDateTime.ofInstant(utcInstant, ZoneId.of("UTC")).toString()));
         } catch (IOException e) {
             throw new CsaInvalidDataException("cannot convert csa profiles zip to csa request", e);
         }
     }
 
-    public static CsaProfileCracCreationContext getCsaCracCreationContext(Path targetTmpPath, Network network, OffsetDateTime offsetDateTime) throws FileNotFoundException {
-        CsaProfileCracImporter cracImporter = new CsaProfileCracImporter();
-        CsaProfileCrac nativeCrac = cracImporter.importNativeCrac(new FileInputStream(targetTmpPath.toFile()));
-        CsaProfileCracCreator cracCreator = new CsaProfileCracCreator();
-        CracCreationParameters parameters = new CracCreationParameters();
-        CsaCracCreationParameters csaParameters = new CsaCracCreationParameters();
-        parameters.addExtension(CsaCracCreationParameters.class, csaParameters);
-        return cracCreator.createCrac(nativeCrac, network, offsetDateTime, parameters);
+    public static CsaProfileCracCreationContext getCsaCracCreationContext(Path targetTmpPath, Network network, OffsetDateTime offsetDateTime) {
+        try (InputStream inputStream = new FileInputStream(targetTmpPath.toFile())) {
+            CracCreationParameters cracCreationParameters = new CracCreationParameters();
+            cracCreationParameters.addExtension(CsaCracCreationParameters.class, new CsaCracCreationParameters());
+            return (CsaProfileCracCreationContext) Crac.readWithContext(targetTmpPath.getFileName().toString(), inputStream, network, offsetDateTime, cracCreationParameters);
+        } catch (IOException e) {
+            throw new OpenRaoException(e);
+        }
     }
 
     public static Network getNetworkFromZipPath(Path zipPath) {
