@@ -23,7 +23,7 @@ public class S3ClientsConfigurations {
         try {
             return MinioClient.builder().endpoint(artifactsS3Url).credentials(artifactsAccessKey, artifactsAccessSecret).build();
         } catch (Exception e) {
-            throw new CsaInternalException("Exception in MinIO client", e);
+            throw new CsaInternalException("unknown-id", "Exception in MinIO client", e);
         }
     }
 
