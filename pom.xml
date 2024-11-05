@@ -12,7 +12,7 @@
 
     <properties>
         <minio.version>8.2.2</minio.version>
-        <gridcapa.swe.csa.version>2.1.0</gridcapa.swe.csa.version>
+        <gridcapa.swe.csa.version>2.1.1</gridcapa.swe.csa.version>
         <open.rao.version>6.1.1</open.rao.version>
         <powsybl.version>6.5.0</powsybl.version>
     </properties>
