@@ -26,7 +26,7 @@ public final class S3AdapterUtil {
             }
         } catch (Exception e) {
             LOGGER.error(String.format("Exception occurred while creating bucket: %s", bucket));
-            throw new CsaInternalException(String.format("Exception occurred while creating bucket: %s", bucket));
+            throw new CsaInternalException("unknown-id", String.format("Exception occurred while creating bucket: %s", bucket));
         }
     }
 
@@ -36,7 +36,7 @@ public final class S3AdapterUtil {
             minioClient.putObject(PutObjectArgs.builder().bucket(bucket).object(pathDestination).stream(sourceInputStream, -1, 50000000).build());
         } catch (Exception e) {
             LOGGER.error(e.getMessage(), e);
-            throw new CsaInternalException(String.format("Exception occurred while uploading file: %s, to minio server", pathDestination));
+            throw new CsaInternalException("unknown-id", String.format("Exception occurred while uploading file: %s, to minio server", pathDestination));
         }
     }
 
@@ -44,7 +44,7 @@ public final class S3AdapterUtil {
         try {
             return minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder().bucket(bucket).object(minioPath).expiry(DEFAULT_DOWNLOAD_LINK_EXPIRY_IN_DAYS, TimeUnit.DAYS).method(Method.GET).build());
         } catch (Exception e) {
-            throw new CsaInternalException("Exception in MinIO connection.", e);
+            throw new CsaInternalException("unknown-id", "Exception in MinIO connection.", e);
         }
     }
 

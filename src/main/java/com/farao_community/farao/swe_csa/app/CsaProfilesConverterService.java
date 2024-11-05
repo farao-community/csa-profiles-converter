@@ -11,8 +11,8 @@ import com.powsybl.iidm.network.Network;
 import com.powsybl.openrao.commons.OpenRaoException;
 import com.powsybl.openrao.data.cracapi.Crac;
 import com.powsybl.openrao.data.cracapi.parameters.CracCreationParameters;
-import com.powsybl.openrao.data.craccreation.creator.csaprofile.craccreator.CsaProfileCracCreationContext;
-import com.powsybl.openrao.data.craccreation.creator.csaprofile.parameters.CsaCracCreationParameters;
+import com.powsybl.openrao.data.cracapi.parameters.JsonCracCreationParameters;
+import com.powsybl.openrao.data.cracio.csaprofiles.craccreator.CsaProfileCracCreationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -42,6 +42,7 @@ public class CsaProfilesConverterService {
     }
 
     public CsaRequest makeRequest(MultipartFile csaProfilesArchive, Instant utcInstant) {
+        String taskId = null;
         try {
             FileAttribute<Set<PosixFilePermission>> attr = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
             Path targetTmpDir = Files.createTempDirectory("rao-integration-temp-dir", attr);
@@ -50,7 +51,7 @@ public class CsaProfilesConverterService {
 
             Network network = getNetworkFromZipPath(targetTmpPath.toAbsolutePath());
             Crac crac = getCsaCracCreationContext(targetTmpPath.toAbsolutePath(), network, OffsetDateTime.ofInstant(utcInstant, ZoneId.of("UTC"))).getCrac();
-            String taskId = UUID.randomUUID().toString();
+            taskId = UUID.randomUUID().toString();
 
             String cracDestinationPath = "/inputs/" + HOURLY_NAME_FORMATTER.format(utcInstant).concat(".json");
             ByteArrayOutputStream cracBaos = new ByteArrayOutputStream();
@@ -63,15 +64,14 @@ public class CsaProfilesConverterService {
             s3ArtifactsAdapter.uploadFile(iidmNetworkDestinationPath, memDataSource.newInputStream("", "xiidm"));
             return new CsaRequest(taskId, utcInstant.toString(), s3ArtifactsAdapter.generatePreSignedUrl(iidmNetworkDestinationPath), s3ArtifactsAdapter.generatePreSignedUrl(cracDestinationPath), s3ArtifactsAdapter.createRaoResultDestination(OffsetDateTime.ofInstant(utcInstant, ZoneId.of("UTC")).toString()));
         } catch (IOException e) {
-            throw new CsaInvalidDataException("cannot convert csa profiles zip to csa request", e);
+            throw new CsaInvalidDataException(taskId, "cannot convert csa profiles zip to csa request", e);
         }
     }
 
     public static CsaProfileCracCreationContext getCsaCracCreationContext(Path targetTmpPath, Network network, OffsetDateTime offsetDateTime) {
         try (InputStream inputStream = new FileInputStream(targetTmpPath.toFile())) {
-            CracCreationParameters cracCreationParameters = new CracCreationParameters();
-            cracCreationParameters.addExtension(CsaCracCreationParameters.class, new CsaCracCreationParameters());
-            return (CsaProfileCracCreationContext) Crac.readWithContext(targetTmpPath.getFileName().toString(), inputStream, network, offsetDateTime, cracCreationParameters);
+            CracCreationParameters importedParameters = JsonCracCreationParameters.read(CsaProfilesConverterService.class.getResourceAsStream("/csa-crac-parameters.json"));
+            return (CsaProfileCracCreationContext) Crac.readWithContext(targetTmpPath.getFileName().toString(), inputStream, network, offsetDateTime, importedParameters);
         } catch (IOException e) {
             throw new OpenRaoException(e);
         }
