@@ -9,10 +9,11 @@ import com.powsybl.computation.local.LocalComputationManager;
 import com.powsybl.iidm.network.ImportConfig;
 import com.powsybl.iidm.network.Network;
 import com.powsybl.openrao.commons.OpenRaoException;
-import com.powsybl.openrao.data.cracapi.Crac;
-import com.powsybl.openrao.data.cracapi.parameters.CracCreationParameters;
-import com.powsybl.openrao.data.cracapi.parameters.JsonCracCreationParameters;
-import com.powsybl.openrao.data.cracio.csaprofiles.craccreator.CsaProfileCracCreationContext;
+import com.powsybl.openrao.data.crac.api.Crac;
+import com.powsybl.openrao.data.crac.api.parameters.CracCreationParameters;
+import com.powsybl.openrao.data.crac.api.parameters.JsonCracCreationParameters;
+import com.powsybl.openrao.data.crac.io.csaprofiles.craccreator.CsaProfileCracCreationContext;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -62,7 +63,9 @@ public class CsaProfilesConverterService {
             MemDataSource memDataSource = new MemDataSource();
             network.write("XIIDM", new Properties(), memDataSource);
             s3ArtifactsAdapter.uploadFile(iidmNetworkDestinationPath, memDataSource.newInputStream("", "xiidm"));
-            return new CsaRequest(taskId, utcInstant.toString(), s3ArtifactsAdapter.generatePreSignedUrl(iidmNetworkDestinationPath), s3ArtifactsAdapter.generatePreSignedUrl(cracDestinationPath), s3ArtifactsAdapter.createRaoResultDestination(OffsetDateTime.ofInstant(utcInstant, ZoneId.of("UTC")).toString()));
+            CsaRequest csaRequest = new CsaRequest(taskId, utcInstant.toString(), s3ArtifactsAdapter.generatePreSignedUrl(iidmNetworkDestinationPath), "fake glsk url", s3ArtifactsAdapter.generatePreSignedUrl(cracDestinationPath), s3ArtifactsAdapter.generatePreSignedUrl(cracDestinationPath));
+            LoggerFactory.getLogger("CsaProfilesConverterService").info(csaRequest.toString());
+            return csaRequest;
         } catch (IOException e) {
             throw new CsaInvalidDataException(taskId, "cannot convert csa profiles zip to csa request", e);
         }
