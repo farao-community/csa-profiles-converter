@@ -86,4 +86,22 @@ public class CsaProfilesConverterService {
         return Network.read(zipPath, LocalComputationManager.getDefault(), Suppliers.memoize(ImportConfig::load).get(), importParams);
     }
 
+    public CsaRequest generateCsaRequest(MultipartFile ptEsCracJson, MultipartFile frEsCracJson, MultipartFile networkIidm, MultipartFile comoGlskJson, Instant utcInstant) throws IOException {
+        String taskId = UUID.randomUUID().toString();
+
+        String ptEsCracDestinationPath = "/inputs/" + HOURLY_NAME_FORMATTER.format(utcInstant).concat("-pt-es.json");
+        s3ArtifactsAdapter.uploadFile(ptEsCracDestinationPath, ptEsCracJson.getInputStream());
+
+        String frEsCracDestinationPath = "/inputs/" + HOURLY_NAME_FORMATTER.format(utcInstant).concat("-fr-es.json");
+        s3ArtifactsAdapter.uploadFile(frEsCracDestinationPath, frEsCracJson.getInputStream());
+
+        String iidmNetworkDestinationPath = "/inputs/" + HOURLY_NAME_FORMATTER.format(utcInstant).concat(".xiidm");
+        s3ArtifactsAdapter.uploadFile(iidmNetworkDestinationPath, networkIidm.getInputStream());
+
+        String comoGlskDestinationPath = "/inputs/" + HOURLY_NAME_FORMATTER.format(utcInstant).concat("-como-glsk.json");
+        s3ArtifactsAdapter.uploadFile(comoGlskDestinationPath, comoGlskJson.getInputStream());
+        CsaRequest csaRequest = new CsaRequest(taskId, utcInstant.toString(), s3ArtifactsAdapter.generatePreSignedUrl(iidmNetworkDestinationPath), s3ArtifactsAdapter.generatePreSignedUrl(comoGlskDestinationPath), s3ArtifactsAdapter.generatePreSignedUrl(ptEsCracDestinationPath), s3ArtifactsAdapter.generatePreSignedUrl(frEsCracDestinationPath));
+        LoggerFactory.getLogger("CsaProfilesConverterService").info(csaRequest.toString());
+        return csaRequest;
+    }
 }

@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.Instant;
 
 @RestController
@@ -28,5 +29,11 @@ public class CsaProfilesConverterController {
     public ResponseEntity convertCsaProfilesZipToCsaRequest(@RequestParam MultipartFile csaProfilesArchive, @RequestParam String utcInstant) {
         Instant instant = Instant.parse(utcInstant);
         return ResponseEntity.ok().body(jsonApiConverter.toJsonMessage(csaProfilesConverterService.makeRequest(csaProfilesArchive, instant), CsaRequest.class));
+    }
+
+    @PostMapping(value = "/generate-csa-request", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE}, produces = JSON_API_MIME_TYPE)
+    public ResponseEntity generateCsaRequest(@RequestParam MultipartFile ptEsCracJson, @RequestParam MultipartFile frEsCracJson, @RequestParam MultipartFile networkIidm, @RequestParam MultipartFile comoGlskJson, @RequestParam String utcInstant) throws IOException {
+        Instant instant = Instant.parse(utcInstant);
+        return ResponseEntity.ok().body(jsonApiConverter.toJsonMessage(csaProfilesConverterService.generateCsaRequest(ptEsCracJson, frEsCracJson, networkIidm, comoGlskJson, instant), CsaRequest.class));
     }
 }
