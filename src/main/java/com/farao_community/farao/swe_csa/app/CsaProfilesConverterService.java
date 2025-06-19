@@ -12,7 +12,8 @@ import com.powsybl.openrao.commons.OpenRaoException;
 import com.powsybl.openrao.data.crac.api.Crac;
 import com.powsybl.openrao.data.crac.api.parameters.CracCreationParameters;
 import com.powsybl.openrao.data.crac.api.parameters.JsonCracCreationParameters;
-import com.powsybl.openrao.data.crac.io.csaprofiles.craccreator.CsaProfileCracCreationContext;
+import com.powsybl.openrao.data.crac.io.nc.craccreator.NcCracCreationContext;
+import com.powsybl.openrao.data.crac.io.nc.parameters.NcCracCreationParameters;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -71,10 +72,11 @@ public class CsaProfilesConverterService {
         }
     }
 
-    public static CsaProfileCracCreationContext getCsaCracCreationContext(Path targetTmpPath, Network network, OffsetDateTime offsetDateTime) {
+    public static NcCracCreationContext getCsaCracCreationContext(Path targetTmpPath, Network network, OffsetDateTime offsetDateTime) {
         try (InputStream inputStream = new FileInputStream(targetTmpPath.toFile())) {
             CracCreationParameters importedParameters = JsonCracCreationParameters.read(CsaProfilesConverterService.class.getResourceAsStream("/csa-crac-parameters.json"));
-            return (CsaProfileCracCreationContext) Crac.readWithContext(targetTmpPath.getFileName().toString(), inputStream, network, offsetDateTime, importedParameters);
+            importedParameters.getExtension(NcCracCreationParameters.class).setTimestamp(offsetDateTime);
+            return (NcCracCreationContext) Crac.readWithContext(targetTmpPath.getFileName().toString(), inputStream, network, importedParameters);
         } catch (IOException e) {
             throw new OpenRaoException(e);
         }
